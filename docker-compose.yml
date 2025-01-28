@@ -1,0 +1,39 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: litebase
+      POSTGRES_PASSWORD: litebase
+      POSTGRES_DB: litebase
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    ports:
+      - '3000:3000'
+    environment:
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USER: litebase
+      DB_PASSWORD: litebase
+      DB_NAME: litebase
+      NODE_ENV: development
+    depends_on:
+      - postgres
+
+  admin:
+    build:
+      context: ./admin
+      dockerfile: Dockerfile
+    ports:
+      - '8080:80'
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:
