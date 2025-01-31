@@ -1,58 +1,43 @@
-name: Docker
+name: Docker CI/CD
 
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    paths-ignore:
+      - 'packages/sdk/**'
+      - 'docs/**'
+      - '**.md'
   pull_request:
     branches: [main]
-
-env:
-  REGISTRY: ghcr.io
-  API_IMAGE_NAME: ${{ github.repository }}/api
-  ADMIN_IMAGE_NAME: ${{ github.repository }}/admin
+    paths-ignore:
+      - 'packages/sdk/**'
+      - 'docs/**'
+      - '**.md'
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Log in to the Container registry
-        uses: docker/login-action@v2
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
 
-      - name: Extract metadata (tags, labels) for API
-        id: meta-api
-        uses: docker/metadata-action@v4
+      - name: Login to Docker Hub
+        uses: docker/login-action@v3
         with:
-          images: ${{ env.REGISTRY }}/${{ env.API_IMAGE_NAME }}
-
-      - name: Extract metadata (tags, labels) for Admin
-        id: meta-admin
-        uses: docker/metadata-action@v4
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.ADMIN_IMAGE_NAME }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push API image
-        uses: docker/build-push-action@v4
+        uses: docker/build-push-action@v5
         with:
-          context: ./api
+          context: .
+          file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-api.outputs.tags }}
-          labels: ${{ steps.meta-api.outputs.labels }}
-
-      - name: Build and push Admin image
-        uses: docker/build-push-action@v4
-        with:
-          context: ./admin
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.meta-admin.outputs.tags }}
-          labels: ${{ steps.meta-admin.outputs.labels }}
+          tags: |
+            ${{ secrets.DOCKERHUB_USERNAME }}/litebase:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/litebase:${{ github.sha }}
+          cache-from: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/litebase:buildcache
+          cache-to: type=registry,ref=${{ secrets.DOCKERHUB_USERNAME }}/litebase:buildcache,mode=max
