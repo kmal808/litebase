@@ -1,3 +1,49 @@
-node_modules
+#! Node modules
+node_modules/
+
+#! Environment variables
 .env
 *.env
+**/.env
+.env.local
+.env.example
+.env.development
+.env.production
+.env.test
+.env.test.local
+.env.production.local
+.env.development.local
+
+#! Local files
+.DS_Store
+
+#! Build files
+dist
+
+#! Cache files
+.cache
+
+#! Logs
+Logs
+
+#! Temp files
+temp
+
+#! Archive files  
+*.tgz
+*.tar
+*.zip
+*.tar.gz
+*.tar.bz2
+*.tar.xz
+*.tar.lzma
+*.tar.wim
+*.tar.zst
+
+# eslint cache
+.eslintcache
+
+# Typescript cache
+*.tsbuildinfo
+
+
