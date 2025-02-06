@@ -28,40 +28,53 @@ cp .env.example .env
 docker compose up -d
 ```
 
-Visit `http://localhost:8080` to access the admin dashboard.
+Visit `http://localhost:3001` to access the admin dashboard.
 
 ### Option 2: NPM Package Only
 
 ```bash
-npm install @litebase/sdk
+npm install @kvrt/litebase-client-sdk
 ```
 
 ```typescript
-import { LitebaseClient } from '@litebase/sdk'
+import { LitebaseClient } from '@kvrt/litebase-client-sdk'
 
 const client = new LitebaseClient({
   apiKey: 'your-api-key',
   projectId: 'your-project-id',
 })
 
+// Initialize and connect for real-time features
+await client.connect()
+
 // Create a table
-await client.createTable('users', {
-  id: 'serial',
-  name: 'text',
-  email: 'text',
+await client.createTable('tasks', {
+  id: { type: 'uuid', primary: true },
+  title: { type: 'string' },
+  status: { type: 'string' },
+  created_at: { type: 'timestamp', default: 'now()' },
 })
 
 // Insert data
-await client.from('users').insert({ name: 'John', email: 'john@example.com' })
+const [task] = await client.insert('tasks', [
+  {
+    title: 'My first task',
+    status: 'pending',
+  },
+])
 
-// Query with real-time updates
-client
-  .from('users')
-  .select('name', 'email')
-  .where({ name: 'John' })
-  .subscribe((users) => {
-    console.log('Users updated:', users)
-  })
+// Query data
+const tasks = await client.query('tasks', {
+  orderBy: { created_at: 'desc' },
+})
+
+// Subscribe to real-time updates
+const unsubscribe = client.subscribe('tasks', (event) => {
+  console.log('Task updated:', event.data)
+})
+
+// Cleanup subscription when done
+unsubscribe()
 ```
 
 ## Architecture
