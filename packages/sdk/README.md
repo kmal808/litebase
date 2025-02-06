@@ -5,54 +5,66 @@ The official JavaScript/TypeScript SDK for Litebase - a lightweight alternative 
 ## Installation
 
 ```bash
-npm install @litebase/sdk
+npm install @kvrt/litebase-client-sdk
 # or
-yarn add @litebase/sdk
+yarn add @kvrt/litebase-client-sdk
 # or
-pnpm add @litebase/sdk
+pnpm add @kvrt/litebase-client-sdk
 ```
 
 ## Quick Start
 
 ```typescript
-import { LitebaseClient } from '@litebase/sdk'
+import { LitebaseClient } from '@kvrt/litebase-client-sdk'
 
 // Initialize the client
 const client = new LitebaseClient({
   apiKey: 'your-api-key',
   projectId: 'your-project-id',
+  baseUrl: 'http://localhost:3000', // Optional, defaults to http://localhost:3000
 })
 
+// Connect for real-time features
+await client.connect()
+
 // Create a table
-await client.createTable('users', {
-  id: 'serial',
-  name: 'text',
-  email: 'text',
-  created_at: 'timestamp',
+await client.createTable('tasks', {
+  id: { type: 'uuid', primary: true },
+  title: { type: 'string' },
+  status: { type: 'string' },
+  created_at: { type: 'timestamp', default: 'now()' },
 })
 
 // Insert data
-await client.insert('users', [
+const [task] = await client.insert('tasks', [
   {
-    name: 'John Doe',
-    email: 'john@example.com',
+    title: 'My first task',
+    status: 'pending',
   },
 ])
 
 // Query data
-const users = await client.query('users', {
-  select: ['name', 'email'],
-  where: { name: 'John Doe' },
+const tasks = await client.query('tasks', {
+  orderBy: { created_at: 'desc' },
 })
+
+// Subscribe to real-time updates
+const unsubscribe = client.subscribe('tasks', (event) => {
+  console.log('Task updated:', event.data)
+})
+
+// Cleanup subscription when done
+unsubscribe()
 ```
 
 ## Features
 
 - Project Management
-- Table Creation and Management
+- Table Creation and Schema Management
 - Data Operations (CRUD)
+- Real-time Subscriptions via WebSocket
 - Type-safe API with TypeScript
-- Automatic Error Handling
+- Automatic Error Handling and Reconnection
 
 ## API Reference
 
@@ -64,6 +76,9 @@ const client = new LitebaseClient({
   projectId?: string;  // Project ID (required for most operations)
   baseUrl?: string;    // Custom API URL (defaults to http://localhost:3000)
 });
+
+// Connect WebSocket for real-time features
+await client.connect();
 ```
 
 ### Project Management
@@ -82,68 +97,94 @@ const newProject = await client.createProject('My Project')
 ### Table Management
 
 ```typescript
-// Create a table
-const table = await client.createTable('users', {
-  id: 'serial',
-  name: 'text',
-  email: 'text',
+// Create a table with schema
+const table = await client.createTable('tasks', {
+  id: { type: 'uuid', primary: true },
+  title: { type: 'string' },
+  description: { type: 'string', nullable: true },
+  status: { type: 'string' },
+  created_at: { type: 'timestamp', default: 'now()' },
 })
 
 // List tables
 const tables = await client.listTables()
 
 // Get table details
-const table = await client.getTable('users')
+const table = await client.getTable('tasks')
 ```
 
 ### Data Operations
 
 ```typescript
-// Query data
-const results = await client.query('users', {
-  select: ['name', 'email'],
-  where: { active: true },
-  orderBy: 'created_at',
+// Query data with filters and ordering
+const results = await client.query('tasks', {
+  where: { status: 'pending' },
+  orderBy: { created_at: 'desc' },
   limit: 10,
   offset: 0,
 })
 
-// Insert data
-const inserted = await client.insert(
-  'users',
-  [{ name: 'John', email: 'john@example.com' }],
+// Insert data with returning fields
+const [task] = await client.insert('tasks', [
   {
-    returning: ['id', 'created_at'],
-  }
-)
+    title: 'New task',
+    status: 'pending',
+  },
+])
 
 // Update data
 const updated = await client.update(
-  'users',
-  { active: false },
-  {
-    where: { id: 1 },
-    returning: ['id'],
-  }
+  'tasks',
+  { status: 'completed' },
+  { where: { id: task.id } }
 )
 
 // Delete data
-const deleted = await client.delete('users', {
-  where: { id: 1 },
-  returning: ['id'],
+const deleted = await client.delete('tasks', {
+  where: { id: task.id },
 })
+```
+
+### Real-time Subscriptions
+
+```typescript
+// Subscribe to all changes on a table
+const unsubscribe = client.subscribe('tasks', (event) => {
+  console.log('Event type:', event.type) // 'INSERT' | 'UPDATE' | 'DELETE'
+  console.log('Changed data:', event.data)
+})
+
+// Subscribe with filters
+const filteredUnsubscribe = client.subscribe(
+  'tasks',
+  (event) => {
+    console.log('Pending task changed:', event.data)
+  },
+  { where: { status: 'pending' } }
+)
+
+// Cleanup subscriptions when done
+unsubscribe()
+filteredUnsubscribe()
 ```
 
 ## Error Handling
 
-The SDK includes built-in error handling:
+The SDK includes built-in error handling and automatic WebSocket reconnection:
 
 ```typescript
 try {
   await client.query('non_existent_table')
 } catch (error) {
-  console.error(error.message) // Table not found
+  if (error.code === 'TABLE_NOT_FOUND') {
+    console.error('Table does not exist')
+  }
 }
+
+// WebSocket connection status
+client.onConnectionChange((status) => {
+  console.log('Connection status:', status)
+})
 ```
 
 ## Development
