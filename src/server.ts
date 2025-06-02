@@ -4,6 +4,11 @@ import dotenv from 'dotenv'
 import { v4 as uuidv4 } from 'uuid'
 import { RestApiGenerator } from './api/rest-generator'
 import { createTableRoutes } from './api/table-routes'
+import http from 'http' // Import http
+import { createDataRoutes } from './api/data-routes'
+import { ProjectManager } from '../core/project-manager'
+import { RealtimeManager } from '../core/realtime-manager' // Import RealtimeManager
+import { DatabaseConfig } from './api/types'
 
 dotenv.config()
 
@@ -29,18 +34,9 @@ app.get('/health', (req, res) => {
 // Initialize system tables and start server
 async function initializeServer() {
   try {
-    const client = await pool.connect()
-
-    // Create projects table if it doesn't exist
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS projects (
-        id SERIAL PRIMARY KEY,
-        name VARCHAR(255) NOT NULL,
-        api_key VARCHAR(255) NOT NULL UNIQUE,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-      )
-    `)
+    // Initialize ProjectManager
+    const projectManager = new ProjectManager(dbConfig as DatabaseConfig)
+    await projectManager.initialize()
 
     // Create project routes
     app.post('/api/projects', async (req, res) => {
@@ -51,12 +47,10 @@ async function initializeServer() {
         }
 
         const apiKey = uuidv4() // Generate a unique API key
-        const result = await client.query(
-          'INSERT INTO projects (name, api_key) VALUES ($1, $2) RETURNING *',
-          [name, apiKey]
-        )
+        const projectConfig = { apiKey }
+        const newProject = await projectManager.createProject(name, projectConfig)
 
-        res.status(201).json(result.rows[0])
+        res.status(201).json(newProject)
       } catch (error) {
         console.error('Error in POST /api/projects:', error)
         res.status(500).json({ error: 'Failed to create project' })
@@ -65,27 +59,33 @@ async function initializeServer() {
 
     app.get('/api/projects', async (req, res) => {
       try {
-        const result = await client.query(
-          'SELECT * FROM projects ORDER BY created_at DESC'
-        )
-        res.json(result.rows)
+        const projects = await projectManager.listProjects()
+        res.json(projects)
       } catch (error) {
         console.error('Error in GET /api/projects:', error)
         res.status(500).json({ error: 'Failed to fetch projects' })
       }
     })
 
-    // Add table management routes
-    app.use('/api/projects', createTableRoutes(client))
+    // Mount table management routes, passing ProjectManager
+    app.use('/api/projects', createTableRoutes(projectManager))
 
-    // Create REST API routes for projects
-    const restApiGenerator = new RestApiGenerator(client)
-    app.use('/api/projects', restApiGenerator.generateApi('projects'))
+    // Mount data manipulation routes, passing ProjectManager
+    app.use('/api/projects', createDataRoutes(projectManager))
+
+    // The RestApiGenerator for the 'projects' table itself is no longer needed.
+    // Project creation and listing are handled by specific ProjectManager routes.
+    // Dynamic table/data routes handle project-specific tables, not the projects table.
+
+    // Initialize RealtimeManager
+    const realtimeManager = new RealtimeManager(projectManager, pool) // Pass pool
 
     const port = process.env.PORT || 3000
-    app.listen(port, () => {
+    const httpServer = app.listen(port, () => {
       console.log(`Server running on port ${port}`)
     })
+
+    realtimeManager.initialize(httpServer) // Initialize RealtimeManager with the HTTP server
   } catch (error) {
     console.error('Failed to initialize server:', error)
     process.exit(1)

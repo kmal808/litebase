@@ -18,12 +18,10 @@ export const projectAuth = (projectManager: ProjectManager) => {
     }
 
     try {
-      // In a real implementation, we'd validate the API key against the project
-      // For now, we'll just use it as the project ID
-      const project = await projectManager.getProject(apiKey)
+      const project = await projectManager.getProjectByApiKey(apiKey)
 
       if (!project) {
-        return res.status(401).json({ error: 'Invalid API key' })
+        return res.status(401).json({ error: 'Invalid API key or project not found' })
       }
 
       req.projectId = project.id
