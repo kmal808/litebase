@@ -45,6 +45,30 @@ export class ProjectManager {
     }
   }
 
+  async getProjectByApiKey(apiKey: string): Promise<Project | null> {
+    const result = await this.pool.query<ProjectRow>(
+      `
+      SELECT * FROM ${this.systemSchemaName}.projects 
+      WHERE config->>'apiKey' = $1
+      `,
+      [apiKey]
+    )
+
+    if (result.rows.length === 0) {
+      return null
+    }
+
+    const row = result.rows[0]
+    return {
+      id: row.id,
+      name: row.name,
+      schema_name: row.schema_name,
+      created_at: row.created_at,
+      updated_at: row.updated_at,
+      config: row.config,
+    }
+  }
+
   async createProject(name: string, config: ProjectConfig): Promise<Project> {
     const client = await this.pool.connect()
     try {

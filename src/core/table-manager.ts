@@ -26,16 +26,16 @@ export class TableManager {
     this.client = client
   }
 
-  async createProjectSchema(projectId: number): Promise<void> {
-    const schemaName = `project_${projectId}`
-    await this.client.query(`CREATE SCHEMA IF NOT EXISTS ${schemaName}`)
+  async createProjectSchema(projectId: string): Promise<void> {
+    const schemaName = `project_${projectId.replace(/-/g, '_')}`
+    await this.client.query(`CREATE SCHEMA IF NOT EXISTS "${schemaName}"`)
   }
 
   async createTable(
-    projectId: number,
+    projectId: string,
     tableDefinition: TableDefinition
   ): Promise<void> {
-    const schemaName = `project_${projectId}`
+    const schemaName = `project_${projectId.replace(/-/g, '_')}`
 
     // Build column definitions
     const columnDefs = tableDefinition.columns
@@ -70,16 +70,39 @@ export class TableManager {
 
     // Create table query
     const createTableQuery = `
-      CREATE TABLE IF NOT EXISTS ${schemaName}.${tableDefinition.name} (
+      CREATE TABLE IF NOT EXISTS "${schemaName}"."${tableDefinition.name}" (
         ${columnDefs}
       )
     `
 
     await this.client.query(createTableQuery)
+    console.log(`Table "${schemaName}"."${tableDefinition.name}" created successfully.`)
+
+    // Create the trigger for real-time notifications
+    const triggerName = `lt_realtime_trigger_${tableDefinition.name}`
+    // Ensure tableDefinition.name is sanitized or only contains valid characters for a trigger name if not already quoted.
+    // However, trigger names might not need quoting if they follow standard identifier rules.
+    // For safety, if tableDefinition.name can be arbitrary, it should be quoted or sanitized.
+    // Here, we assume tableDefinition.name is a valid identifier fragment.
+    
+    const createTriggerQuery = `
+      CREATE TRIGGER "${triggerName}"
+      AFTER INSERT OR UPDATE OR DELETE ON "${schemaName}"."${tableDefinition.name}"
+      FOR EACH ROW EXECUTE FUNCTION litebase_notify_change();
+    `
+    try {
+      await this.client.query(createTriggerQuery)
+      console.log(`Trigger "${triggerName}" created successfully on table "${schemaName}"."${tableDefinition.name}".`)
+    } catch (triggerError) {
+      console.error(`Failed to create trigger "${triggerName}" on table "${schemaName}"."${tableDefinition.name}":`, triggerError)
+      // Depending on desired behavior, you might want to re-throw the error
+      // or attempt to roll back the table creation if this is part of a transaction.
+      // For now, just logging the error.
+    }
   }
 
-  async listTables(projectId: number): Promise<string[]> {
-    const schemaName = `project_${projectId}`
+  async listTables(projectId: string): Promise<string[]> {
+    const schemaName = `project_${projectId.replace(/-/g, '_')}`
     const result = await this.client.query(
       `
       SELECT table_name 
@@ -93,10 +116,10 @@ export class TableManager {
   }
 
   async getTableDefinition(
-    projectId: number,
+    projectId: string,
     tableName: string
   ): Promise<TableDefinition | null> {
-    const schemaName = `project_${projectId}`
+    const schemaName = `project_${projectId.replace(/-/g, '_')}`
 
     // Get column information
     const result = await this.client.query(
@@ -151,6 +174,28 @@ export class TableManager {
     return {
       name: tableName,
       columns,
+    }
+  }
+
+  async deleteTable(projectId: string, tableName: string): Promise<void> {
+    const schemaName = `project_${projectId.replace(/-/g, '_')}`
+    const triggerName = `lt_realtime_trigger_${tableName}` // Assuming tableName is safe for use in trigger name
+
+    try {
+      // Drop the trigger first
+      const dropTriggerQuery = `DROP TRIGGER IF EXISTS "${triggerName}" ON "${schemaName}"."${tableName}";`
+      await this.client.query(dropTriggerQuery)
+      console.log(`Trigger "${triggerName}" on table "${schemaName}"."${tableName}" dropped successfully or did not exist.`)
+
+      // Then drop the table
+      const dropTableQuery = `DROP TABLE IF EXISTS "${schemaName}"."${tableName}";`
+      await this.client.query(dropTableQuery)
+      console.log(`Table "${schemaName}"."${tableName}" dropped successfully or did not exist.`)
+    } catch (error) {
+      console.error(`Error deleting table "${tableName}" or its trigger "${triggerName}" in schema "${schemaName}":`, error)
+      // Re-throw the error to allow the caller to handle it, potentially with a more user-friendly message
+      // or specific HTTP status codes in the route handler.
+      throw error
     }
   }
 }
