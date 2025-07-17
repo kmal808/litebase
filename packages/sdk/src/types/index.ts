@@ -22,7 +22,7 @@ export interface Table {
 export interface QueryOptions {
   select?: string[]
   where?: Record<string, any>
-  orderBy?: string
+  orderBy?: Record<string, 'ASC' | 'DESC'>
   limit?: number
   offset?: number
 }

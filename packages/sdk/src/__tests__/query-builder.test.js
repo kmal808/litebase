@@ -36,7 +36,7 @@ describe('QueryBuilder', () => {
             expect(mockClient.query).toHaveBeenCalledWith('users', {
                 select: ['id', 'name'],
                 where: { age: { gt: 18 } },
-                orderBy: 'name desc',
+                orderBy: { name: 'DESC' },
                 limit: 10,
                 offset: 0,
             });

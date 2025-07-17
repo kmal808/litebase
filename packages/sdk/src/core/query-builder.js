@@ -16,6 +16,7 @@ class QueryBuilder {
         this.tableName = tableName;
         this._select = ['*'];
         this._where = {};
+        this._orderBy = {};
         this._returning = [];
     }
     /**
@@ -42,7 +43,7 @@ class QueryBuilder {
      * query.orderBy('created_at', 'desc')
      */
     orderBy(field, direction = 'asc') {
-        this._orderBy = `${field} ${direction}`;
+        this._orderBy[field] = direction.toUpperCase();
         return this;
     }
     /**

@@ -22,6 +22,7 @@ export class SubscriptionManager extends EventEmitter {
   private reconnectAttempts = 0
   private maxReconnectAttempts = 5
   private reconnectTimeout = 1000 // Start with 1 second
+  private reconnectTimer?: NodeJS.Timeout
 
   constructor(
     private baseUrl: string,
@@ -40,6 +41,13 @@ export class SubscriptionManager extends EventEmitter {
     return new Promise((resolve, reject) => {
       try {
         this.ws = new WebSocket(this.getWebSocketUrl())
+
+        if (this.ws.readyState === WebSocket.OPEN) {
+          this.reconnectAttempts = 0
+          this.reconnectTimeout = 1000
+          this.resubscribe()
+          resolve()
+        }
 
         this.ws.on('open', () => {
           this.reconnectAttempts = 0
@@ -81,7 +89,7 @@ export class SubscriptionManager extends EventEmitter {
       this.reconnectAttempts++
       this.reconnectTimeout *= 2 // Exponential backoff
       console.log(`Reconnecting in ${this.reconnectTimeout}ms...`)
-      setTimeout(() => this.connect(), this.reconnectTimeout)
+      this.reconnectTimer = setTimeout(() => this.connect(), this.reconnectTimeout)
     } else {
       this.emit('disconnected')
       console.error('Max reconnection attempts reached')
@@ -131,7 +139,12 @@ export class SubscriptionManager extends EventEmitter {
   }
 
   disconnect() {
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer)
+      this.reconnectTimer = undefined
+    }
     if (this.ws) {
+      this.ws.removeAllListeners()
       this.ws.close()
       this.ws = null
       this.subscriptions.clear()

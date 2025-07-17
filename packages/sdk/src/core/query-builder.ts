@@ -21,7 +21,7 @@ interface LitebaseClientInterface {
 export class QueryBuilder<T = any> {
   private _select: string[] = ['*']
   private _where: Record<string, any> = {}
-  private _orderBy?: string
+  private _orderBy: Record<string, 'ASC' | 'DESC'> = {}
   private _limit?: number
   private _offset?: number
   private _returning: string[] = []
@@ -55,9 +55,9 @@ export class QueryBuilder<T = any> {
    * Add order by clause
    * @example
    * query.orderBy('created_at', 'desc')
-   */
+  */
   orderBy(field: string, direction: 'asc' | 'desc' = 'asc'): this {
-    this._orderBy = `${field} ${direction}`
+    this._orderBy[field] = direction.toUpperCase() as 'ASC' | 'DESC'
     return this
   }
 
