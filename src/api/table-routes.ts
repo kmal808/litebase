@@ -6,6 +6,7 @@ import {
   projectAuth,
   AuthenticatedRequest,
 } from '../middleware/project-auth' // Import projectAuth and AuthenticatedRequest
+import { assertValidIdentifier } from '../utils/identifiers'
 
 export function createTableRoutes(projectManager: ProjectManager): Router {
   const router = Router()
@@ -38,6 +39,10 @@ export function createTableRoutes(projectManager: ProjectManager): Router {
       ) {
         return res.status(400).json({ error: 'Invalid table definition' })
       }
+      assertValidIdentifier(tableDefinition.name, 'table name')
+      for (const column of tableDefinition.columns) {
+        assertValidIdentifier(column.name, 'column name')
+      }
 
       projectDbClient = await projectManager.getProjectClient(authenticatedProjectId) // Use authenticatedProjectId
       if (!projectDbClient) {
@@ -58,6 +63,9 @@ export function createTableRoutes(projectManager: ProjectManager): Router {
       })
     } catch (error: any) {
       console.error('Error creating table:', error)
+      if (error.message && error.message.startsWith('Invalid ')) {
+        return res.status(400).json({ error: error.message })
+      }
       if (error.message && error.message.includes('Project not found')) { // This might be redundant if getProjectClient throws
         return res.status(404).json({ error: 'Project not found' })
       }
@@ -77,6 +85,7 @@ export function createTableRoutes(projectManager: ProjectManager): Router {
       const paramProjectId: string = req.params.projectId
       const authenticatedProjectId = authReq.projectId
       const { tableName } = req.params
+      assertValidIdentifier(tableName, 'table name')
 
       if (!authenticatedProjectId || authenticatedProjectId !== paramProjectId) {
         return res.status(403).json({
@@ -99,6 +108,9 @@ export function createTableRoutes(projectManager: ProjectManager): Router {
       })
     } catch (error: any) {
       console.error(`Error deleting table in project:`, error)
+      if (error.message && error.message.startsWith('Invalid ')) {
+        return res.status(400).json({ error: error.message })
+      }
       // Check if the error message indicates the table or schema was not found,
       // which might be considered a successful deletion if the goal is idempotency.
       // However, TableManager's deleteTable already uses IF EXISTS, so a specific "not found"
@@ -162,6 +174,7 @@ export function createTableRoutes(projectManager: ProjectManager): Router {
       const paramProjectId: string = req.params.projectId
       const authenticatedProjectId = authReq.projectId
       const { tableName } = req.params
+      assertValidIdentifier(tableName, 'table name')
 
       if (!authenticatedProjectId || authenticatedProjectId !== paramProjectId) {
         return res.status(403).json({
@@ -187,6 +200,9 @@ export function createTableRoutes(projectManager: ProjectManager): Router {
       res.json(definition)
     } catch (error: any) {
       console.error('Error getting table definition:', error)
+      if (error.message && error.message.startsWith('Invalid ')) {
+        return res.status(400).json({ error: error.message })
+      }
       if (error.message && error.message.includes('Project not found')) {
         return res.status(404).json({ error: 'Project not found' })
       }

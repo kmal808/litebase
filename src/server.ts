@@ -6,9 +6,9 @@ import { RestApiGenerator } from './api/rest-generator'
 import { createTableRoutes } from './api/table-routes'
 import http from 'http' // Import http
 import { createDataRoutes } from './api/data-routes'
-import { ProjectManager } from '../core/project-manager'
-import { RealtimeManager } from '../core/realtime-manager' // Import RealtimeManager
-import { DatabaseConfig } from './api/types'
+import { ProjectManager } from './core/project-manager'
+import { RealtimeManager } from './core/realtime-manager' // Import RealtimeManager
+import { DatabaseConfig, ProjectConfig } from './api/types'
 
 dotenv.config()
 
@@ -47,7 +47,20 @@ async function initializeServer() {
         }
 
         const apiKey = uuidv4() // Generate a unique API key
-        const projectConfig = { apiKey }
+        const projectConfig: ProjectConfig = {
+          apiKey,
+          auth: {
+            enableEmailAuth: false,
+            enableGithubAuth: false,
+            customProviders: [],
+          },
+          api: {
+            enableREST: true,
+            enableGraphQL: false,
+            customEndpoints: [],
+          },
+          schema: {},
+        }
         const newProject = await projectManager.createProject(name, projectConfig)
 
         res.status(201).json(newProject)

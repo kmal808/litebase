@@ -2,21 +2,28 @@
   "name": "@kvrt/litebase-client-sdk",
   "version": "0.1.5",
   "description": "Official JavaScript/TypeScript SDK for Litebase",
-  "main": "dist/litebase-sdk.umd.js",
+  "main": "dist/index.js",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
   "types": "dist/index.d.ts",
   "files": [
     "dist",
     "README.md"
   ],
   "scripts": {
-    "build": "tsc && webpack",
+    "build": "npm run clean && tsc && webpack",
     "dev": "tsc --watch",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "lint": "eslint src --ext .ts",
     "clean": "rm -rf dist",
-    "prepublishOnly": "npm run clean && npm run build"
+    "prepublishOnly": "npm run clean && npm run build",
+    "release:check": "npm test && npm run clean && npm run build && npm pack --dry-run"
   },
   "keywords": [
     "litebase",

@@ -5,6 +5,10 @@ import {
   projectAuth,
   AuthenticatedRequest,
 } from '../middleware/project-auth' // Import projectAuth and AuthenticatedRequest
+import {
+  assertValidIdentifier,
+  assertValidIdentifierList,
+} from '../utils/identifiers'
 
 // Interface for query options based on SDK (simplified for now)
 interface QueryOptions {
@@ -75,6 +79,17 @@ export function createDataRoutes(projectManager: ProjectManager): Router {
     let projectDbClient: PoolClient | undefined
 
     try {
+      assertValidIdentifier(tableName, 'table name')
+      if (options.select) {
+        assertValidIdentifierList(options.select, 'selected column')
+      }
+      if (options.orderBy) {
+        assertValidIdentifierList(Object.keys(options.orderBy), 'orderBy column')
+      }
+      if (options.where) {
+        assertValidIdentifierList(Object.keys(options.where), 'where column')
+      }
+
       projectDbClient = await projectManager.getProjectClient(authenticatedProjectId) // Use authenticatedProjectId
       if (!projectDbClient) {
         return res.status(404).json({ error: 'Project not found or database client unavailable' })
@@ -118,6 +133,9 @@ export function createDataRoutes(projectManager: ProjectManager): Router {
       res.json(result.rows)
     } catch (error: any) {
       console.error(`Error querying table ${tableName} in project ${authenticatedProjectId}:`, error) // Use authenticatedProjectId
+      if (error.message && error.message.startsWith('Invalid ')) {
+        return res.status(400).json({ error: error.message })
+      }
       if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
         return res.status(404).json({ error: `Table "${tableName}" not found in project "${authenticatedProjectId}"` }); // Use authenticatedProjectId
       }
@@ -152,6 +170,7 @@ export function createDataRoutes(projectManager: ProjectManager): Router {
     }
 
     try {
+      assertValidIdentifier(tableName, 'table name')
       projectDbClient = await projectManager.getProjectClient(authenticatedProjectId) // Use authenticatedProjectId
       if (!projectDbClient) {
         return res.status(404).json({ error: 'Project not found or database client unavailable' })
@@ -161,6 +180,7 @@ export function createDataRoutes(projectManager: ProjectManager): Router {
 
       const insertedRows: any[] = []
       for (const record of data) {
+        assertValidIdentifierList(Object.keys(record), 'column name')
         const columns = Object.keys(record).map(col => `"${col}"`).join(', ')
         const valuePlaceholders = Object.keys(record).map((_, i) => `$${i + 1}`).join(', ')
         const values = Object.values(record)
@@ -177,6 +197,9 @@ export function createDataRoutes(projectManager: ProjectManager): Router {
         await projectDbClient.query('ROLLBACK') // Rollback transaction on error
       }
       console.error(`Error inserting data into table ${tableName} in project ${authenticatedProjectId}:`, error) // Use authenticatedProjectId
+      if (error.message && error.message.startsWith('Invalid ')) {
+        return res.status(400).json({ error: error.message })
+      }
       if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
         return res.status(404).json({ error: `Table "${tableName}" not found in project "${authenticatedProjectId}"` }); // Use authenticatedProjectId
       }
@@ -217,6 +240,10 @@ export function createDataRoutes(projectManager: ProjectManager): Router {
     }
 
     try {
+      assertValidIdentifier(tableName, 'table name')
+      assertValidIdentifierList(Object.keys(data), 'column name')
+      assertValidIdentifierList(Object.keys(where), 'where column')
+
       projectDbClient = await projectManager.getProjectClient(authenticatedProjectId) // Use authenticatedProjectId
       if (!projectDbClient) {
         return res.status(404).json({ error: 'Project not found or database client unavailable' })
@@ -241,6 +268,9 @@ export function createDataRoutes(projectManager: ProjectManager): Router {
       res.json(result.rows)
     } catch (error: any) {
       console.error(`Error updating data in table ${tableName} in project ${authenticatedProjectId}:`, error) // Use authenticatedProjectId
+      if (error.message && error.message.startsWith('Invalid ')) {
+        return res.status(400).json({ error: error.message })
+      }
       if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
         return res.status(404).json({ error: `Table "${tableName}" not found in project "${authenticatedProjectId}"` }); // Use authenticatedProjectId
       }
@@ -279,6 +309,9 @@ export function createDataRoutes(projectManager: ProjectManager): Router {
     }
 
     try {
+      assertValidIdentifier(tableName, 'table name')
+      assertValidIdentifierList(Object.keys(where), 'where column')
+
       projectDbClient = await projectManager.getProjectClient(authenticatedProjectId) // Use authenticatedProjectId
       if (!projectDbClient) {
         return res.status(404).json({ error: 'Project not found or database client unavailable' })
@@ -299,6 +332,9 @@ export function createDataRoutes(projectManager: ProjectManager): Router {
       res.json(result.rows) // Or res.json({ message: `${result.rowCount} rows deleted`, deletedRows: result.rows })
     } catch (error: any) {
       console.error(`Error deleting data from table ${tableName} in project ${authenticatedProjectId}:`, error) // Use authenticatedProjectId
+      if (error.message && error.message.startsWith('Invalid ')) {
+        return res.status(400).json({ error: error.message })
+      }
       if (error.message && error.message.includes('relation') && error.message.includes('does not exist')) {
         return res.status(404).json({ error: `Table "${tableName}" not found in project "${authenticatedProjectId}"` }); // Use authenticatedProjectId
       }

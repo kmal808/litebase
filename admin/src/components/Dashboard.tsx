@@ -7,14 +7,14 @@ import { AddProjectDialog } from './projects/add-project-dialog'
 interface Project {
   id: string // Changed from number to string
   name: string
-  api_key: string
   created_at: string
   updated_at: string
+  config: {
+    apiKey: string
+  }
 }
 
-interface Table {
-  name: string
-}
+type Table = string | { name: string }
 
 export function Dashboard() {
   const [projects, setProjects] = useState<Project[]>([])
@@ -61,31 +61,14 @@ export function Dashboard() {
     }
   }, [showToast])
 
-  useEffect(() => {
-    fetchProjects()
-  }, [fetchProjects])
-
-  useEffect(() => {
-    if (selectedProject) {
-      fetchTables(selectedProject.id)
-    } else {
-      setTables([]) // Clear tables if no project is selected
-    }
-  }, [])
-
-  useEffect(() => {
-    if (selectedProject) {
-      fetchTables(selectedProject.id)
-    }
-  }, [selectedProject])
-
-  }, [selectedProject, fetchTables])
-
-
-  const fetchTables = useCallback(async (projectId: string) => {
+  const fetchTables = useCallback(async (projectId: string, apiKey: string) => {
     setTablesLoading(true)
     try {
-      const response = await axios.get(`/api/projects/${projectId}/tables`)
+      const response = await axios.get(`/api/projects/${projectId}/tables`, {
+        headers: {
+          'x-api-key': apiKey,
+        },
+      })
       setTables(response.data)
     } catch (error: any) {
       console.error('Failed to fetch tables:', error)
@@ -97,6 +80,18 @@ export function Dashboard() {
     }
   }, [showToast, selectedProject?.name])
 
+  useEffect(() => {
+    fetchProjects()
+  }, [fetchProjects])
+
+  useEffect(() => {
+    if (selectedProject) {
+      fetchTables(selectedProject.id, selectedProject.config.apiKey)
+    } else {
+      setTables([]) // Clear tables if no project is selected
+    }
+  }, [selectedProject, fetchTables])
+
   const handleProjectSelect = (project: Project) => {
     setSelectedProject(project)
     // fetchTables will be called by useEffect watching selectedProject
@@ -104,7 +99,7 @@ export function Dashboard() {
 
   const handleTableCreated = () => {
     if (selectedProject) {
-      fetchTables(selectedProject.id).then(() => {
+      fetchTables(selectedProject.id, selectedProject.config.apiKey).then(() => {
         showToast('Table Created', `Successfully created table in project ${selectedProject.name}.`, 'default')
       })
     }
@@ -158,13 +153,13 @@ export function Dashboard() {
                   {visibleApiKeyProjectId === project.id ? (
                     <>
                       <div className='text-xs text-gray-700 bg-gray-100 p-1 rounded break-all'>
-                        {project.api_key}
+                        {project.config.apiKey}
                       </div>
                       <div className='flex space-x-1 mt-1'>
                         <button
                           onClick={(e) => {
                             e.stopPropagation() // Prevent project selection
-                            navigator.clipboard.writeText(project.api_key)
+                            navigator.clipboard.writeText(project.config.apiKey)
                             setCopiedKeyProjectId(project.id)
                             setTimeout(() => setCopiedKeyProjectId(null), 2000)
                           }}
@@ -194,6 +189,7 @@ export function Dashboard() {
                 </div>
               </div>
             ))}
+            </div>
             {projects.length === 0 && (
               <p className='text-gray-500 text-sm'>
                 No projects yet. Create one to get started.
@@ -212,6 +208,7 @@ export function Dashboard() {
                 </h2>
                 <CreateTableDialog
                   projectId={selectedProject.id}
+                  apiKey={selectedProject.config.apiKey}
                   onSuccess={handleTableCreated}
                 />
               </div>
@@ -219,13 +216,16 @@ export function Dashboard() {
                 <p className='text-gray-500'>Loading tables...</p>
               ) : (
                 <div className='space-y-2'>
-                  {tables.map((table) => (
+                  {tables.map((table) => {
+                    const tableName = typeof table === 'string' ? table : table.name
+                    return (
                     <div
-                      key={table.name}
+                      key={tableName}
                       className='p-2 bg-gray-50 rounded hover:bg-gray-100'>
-                      {table.name}
+                      {tableName}
                     </div>
-                  ))}
+                    )
+                  })}
                   {tables.length === 0 && !tablesLoading && (
                     <p className='text-gray-500'>
                       No tables yet. Create one to get started.

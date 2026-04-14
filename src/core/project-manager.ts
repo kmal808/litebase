@@ -39,6 +39,24 @@ export class ProjectManager {
           updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
           config JSONB NOT NULL
         );
+
+        CREATE OR REPLACE FUNCTION litebase_notify_change()
+        RETURNS TRIGGER AS $$
+        DECLARE
+          payload JSON;
+        BEGIN
+          payload := json_build_object(
+            'operation', TG_OP,
+            'schema_name', TG_TABLE_SCHEMA,
+            'table_name', TG_TABLE_NAME,
+            'old_data', row_to_json(OLD),
+            'new_data', row_to_json(NEW),
+            'changed_at', CURRENT_TIMESTAMP
+          );
+          PERFORM pg_notify('litebase_changes', payload::text);
+          RETURN COALESCE(NEW, OLD);
+        END;
+        $$ LANGUAGE plpgsql;
       `)
     } finally {
       client.release()

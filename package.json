@@ -7,6 +7,7 @@
     "start": "node dist/server.js",
     "dev": "ts-node-dev --respawn src/server.ts",
     "build": "tsc",
+    "test:smoke": "npm run build && node dist/tests/smoke.js",
     "test": "jest",
     "lint": "eslint . --ext .ts",
     "format": "prettier --write \"src/**/*.ts\""
@@ -21,6 +22,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@radix-ui/react-toast": "^1.1.5",
     "@types/pg": "^8.11.2",
     "bcrypt": "^5.1.1",
     "dotenv": "^16.4.5",
@@ -28,16 +30,15 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.14.1",
     "uuid": "^9.0.1",
-    "ws": "^8.16.0",
-    "@radix-ui/react-toast": "^1.1.5"
+    "ws": "^8.20.0"
   },
   "devDependencies": {
     "@types/bcrypt": "^5.0.2",
-    "@types/ws": "^8.5.10",
     "@types/express": "^4.17.21",
     "@types/jsonwebtoken": "^9.0.6",
     "@types/node": "^20.11.24",
     "@types/uuid": "^9.0.8",
+    "@types/ws": "^8.18.1",
     "ts-node-dev": "^2.0.0",
     "typescript": "^5.3.3"
   }

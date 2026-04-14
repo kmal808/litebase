@@ -23,12 +23,14 @@ interface Column {
 }
 
 interface CreateTableDialogProps {
-  projectId: number
+  projectId: string
+  apiKey: string
   onSuccess: () => void
 }
 
 export function CreateTableDialog({
   projectId,
+  apiKey,
   onSuccess,
 }: CreateTableDialogProps) {
   const [isOpen, setIsOpen] = useState(false)
@@ -59,10 +61,18 @@ export function CreateTableDialog({
   const handleSubmit = async () => {
     try {
       setLoading(true)
-      await axios.post(`/api/projects/${projectId}/tables`, {
-        name: tableName,
-        columns,
-      })
+      await axios.post(
+        `/api/projects/${projectId}/tables`,
+        {
+          name: tableName,
+          columns,
+        },
+        {
+          headers: {
+            'x-api-key': apiKey,
+          },
+        }
+      )
       setIsOpen(false)
       onSuccess()
     } catch (error) {

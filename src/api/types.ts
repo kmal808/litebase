@@ -8,6 +8,7 @@ export interface Project {
 }
 
 export interface ProjectConfig {
+  apiKey: string
   auth: AuthConfig
   api: ApiConfig
   schema: SchemaDefinition
