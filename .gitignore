@@ -46,4 +46,6 @@ temp
 # Typescript cache
 *.tsbuildinfo
 
-
+coverage/
+packages/sdk/node_modules/
+packages/sdk/coverage/
