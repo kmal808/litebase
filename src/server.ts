@@ -15,6 +15,22 @@ dotenv.config()
 const app = express()
 app.use(express.json())
 
+// Browser clients (e.g. Vite apps) need CORS when not using a same-origin proxy.
+const corsOrigin = process.env.CORS_ORIGIN ?? '*'
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', corsOrigin)
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'Content-Type, Authorization, x-api-key'
+  )
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS')
+  if (req.method === 'OPTIONS') {
+    res.sendStatus(204)
+    return
+  }
+  next()
+})
+
 // Database configuration
 const dbConfig = {
   host: process.env.DB_HOST || 'localhost',
@@ -77,6 +93,24 @@ async function initializeServer() {
       } catch (error) {
         console.error('Error in GET /api/projects:', error)
         res.status(500).json({ error: 'Failed to fetch projects' })
+      }
+    })
+
+    // Resolve the project for this API key (avoids mismatched project UUIDs in clients).
+    app.get('/api/project', async (req, res) => {
+      try {
+        const apiKey = req.headers['x-api-key']
+        if (!apiKey || typeof apiKey !== 'string' || !apiKey.trim()) {
+          return res.status(401).json({ error: 'API key required' })
+        }
+        const project = await projectManager.getProjectByApiKey(apiKey.trim())
+        if (!project) {
+          return res.status(401).json({ error: 'Invalid API key' })
+        }
+        res.json({ id: project.id, name: project.name })
+      } catch (error) {
+        console.error('Error in GET /api/project:', error)
+        res.status(500).json({ error: 'Failed to resolve project' })
       }
     })
 
