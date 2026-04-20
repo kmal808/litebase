@@ -17,7 +17,7 @@ A lightweight alternative to Firebase and Supabase. Self-hosted, open-source Bac
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/litebase
+git clone https://github.com/kmal808/litebase
 cd litebase
 
 # Configure environment
@@ -79,13 +79,11 @@ unsubscribe()
 
 ## Architecture
 
-```
-┌─────────────┐     ┌─────────────┐     ┌─────────────┐
-│             │     │             │     │             │
-│  Litebase  │     │   API &     │     │  Postgres   │
-│    SDK     │ --> │  WebSocket  │ --> │  Database   │
-│            │     │   Server    │     │             │
-└─────────────┘     └─────────────┘     └─────────────┘
+```mermaid
+
+flowchart LR
+  A(Litebase SDK) ==> B{API Server} ==> C[(Postgres DB)]
+
 ```
 
 ## Development
@@ -113,14 +111,6 @@ npm run build
 3. Run with Docker Compose
 4. (Optional) Set up reverse proxy with Nginx/Caddy
 
-### Cloud Providers
-
-Deployment guides available for:
-
-- AWS
-- DigitalOcean
-- Google Cloud
-- Azure
 
 ## Documentation
 
